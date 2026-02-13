@@ -1,0 +1,317 @@
+# City Service API Tests
+# Base URL: http://localhost:8080
+
+### ===== CREATE CITY =====
+### Создать новый город
+POST http://localhost:8080/cities
+Content-Type: application/json
+
+{
+  "name": "Moscow",
+  "coordinates": {
+    "x": 55.7558,
+    "y": 37
+  },
+  "area": 2561,
+  "population": 12500000,
+  "metersAboveSeaLevel": 156.0,
+  "capital": true,
+  "climate": "STEPPE",
+  "standardOfLiving": "HIGH",
+  "governor": {
+    "age": 55
+  }
+}
+
+### Создать второй город
+POST http://localhost:8080/cities
+Content-Type: application/json
+
+{
+  "name": "Saint Petersburg",
+  "coordinates": {
+    "x": 59.9343,
+    "y": 30
+  },
+  "area": 1439,
+  "population": 5383890,
+  "metersAboveSeaLevel": 3.0,
+  "capital": false,
+  "climate": "SUBARCTIC",
+  "standardOfLiving": "HIGH",
+  "governor": {
+    "age": 48
+  }
+}
+
+### Создать третий город (бедный)
+POST http://localhost:8080/cities
+Content-Type: application/json
+
+{
+  "name": "Poor City",
+  "coordinates": {
+    "x": 10.0,
+    "y": -500
+  },
+  "area": 100,
+  "population": 50000,
+  "metersAboveSeaLevel": null,
+  "capital": false,
+  "climate": "POLAR_ICECAP",
+  "standardOfLiving": "ULTRA_LOW",
+  "governor": {
+    "age": 70
+  }
+}
+
+### ===== GET CITY =====
+### Получить город по ID
+GET http://localhost:8080/cities/1
+
+### ===== UPDATE CITY =====
+### Обновить город по ID
+PUT http://localhost:8080/cities/1
+Content-Type: application/json
+
+{
+  "name": "Moscow Updated",
+  "coordinates": {
+    "x": 55.7558,
+    "y": 37
+  },
+  "area": 2600,
+  "population": 13000000,
+  "metersAboveSeaLevel": 160.0,
+  "capital": true,
+  "climate": "STEPPE",
+  "standardOfLiving": "HIGH",
+  "governor": {
+    "age": 56
+  }
+}
+
+### ===== DELETE CITY =====
+### Удалить город по ID
+DELETE http://localhost:8080/cities/1
+
+### ===== FILTER CITIES =====
+### Получить все города с пагинацией (по умолчанию)
+POST http://localhost:8080/cities/filter
+Content-Type: application/json
+
+{
+  "page": 1,
+  "size": 10
+}
+
+### Фильтрация с сортировкой по населению (убывание)
+POST http://localhost:8080/cities/filter
+Content-Type: application/json
+
+{
+  "page": 1,
+  "size": 10,
+  "sort": [
+    {
+      "field": "population",
+      "direction": "desc"
+    }
+  ]
+}
+
+### Фильтрация с множественной сортировкой
+POST http://localhost:8080/cities/filter
+Content-Type: application/json
+
+{
+  "page": 1,
+  "size": 10,
+  "sort": [
+    {
+      "field": "standardOfLiving",
+      "direction": "asc"
+    },
+    {
+      "field": "name",
+      "direction": "asc"
+    }
+  ]
+}
+
+### Фильтрация по населению > 1000000
+POST http://localhost:8080/cities/filter
+Content-Type: application/json
+
+{
+  "page": 1,
+  "size": 10,
+  "filters": [
+    {
+      "field": "population",
+      "operator": "gt",
+      "value": "1000000"
+    }
+  ]
+}
+
+### Фильтрация по климату
+POST http://localhost:8080/cities/filter
+Content-Type: application/json
+
+{
+  "page": 1,
+  "size": 10,
+  "filters": [
+    {
+      "field": "climate",
+      "operator": "eq",
+      "value": "STEPPE"
+    }
+  ]
+}
+
+### Фильтрация по столице
+POST http://localhost:8080/cities/filter
+Content-Type: application/json
+
+{
+  "page": 1,
+  "size": 10,
+  "filters": [
+    {
+      "field": "capital",
+      "operator": "eq",
+      "value": "true"
+    }
+  ]
+}
+
+### Комбинированный запрос: фильтр + сортировка
+POST http://localhost:8080/cities/filter
+Content-Type: application/json
+
+{
+  "page": 1,
+  "size": 5,
+  "sort": [
+    {
+      "field": "population",
+      "direction": "desc"
+    }
+  ],
+  "filters": [
+    {
+      "field": "area",
+      "operator": "gte",
+      "value": "500"
+    },
+    {
+      "field": "standardOfLiving",
+      "operator": "eq",
+      "value": "HIGH"
+    }
+  ]
+}
+
+### ===== SPECIAL ENDPOINTS =====
+### Удалить города по возрасту губернатора
+DELETE http://localhost:8080/cities/by-governor?age=70
+
+### Получить город с минимальными координатами
+GET http://localhost:8080/cities/by-min-coordinates
+
+### Посчитать города по климату
+POST http://localhost:8080/cities/count-by-climate
+Content-Type: application/json
+
+{
+  "climate": "STEPPE"
+}
+
+### Получить самый бедный город
+GET http://localhost:8080/cities/poorest
+
+### ===== INTERNAL ENDPOINTS (для genocide-service) =====
+### Уничтожить население города
+POST http://localhost:8080/cities/1/kill-population
+
+### Переселить население из города 1 в город 2
+POST http://localhost:8080/cities/1/relocate-to/2
+
+### ===== VALIDATION ERRORS =====
+### Ошибка: пустое имя
+POST http://localhost:8080/cities
+Content-Type: application/json
+
+{
+  "name": "",
+  "coordinates": {
+    "x": 55.7558,
+    "y": 37
+  },
+  "area": 2561,
+  "population": 12500000,
+  "capital": true,
+  "standardOfLiving": "HIGH",
+  "governor": {
+    "age": 55
+  }
+}
+
+### Ошибка: area < 1
+POST http://localhost:8080/cities
+Content-Type: application/json
+
+{
+  "name": "Test City",
+  "coordinates": {
+    "x": 55.7558,
+    "y": 37
+  },
+  "area": 0,
+  "population": 100,
+  "capital": false,
+  "standardOfLiving": "HIGH",
+  "governor": {
+    "age": 25
+  }
+}
+
+### Ошибка: coordinates.x > 329
+POST http://localhost:8080/cities
+Content-Type: application/json
+
+{
+  "name": "Test City",
+  "coordinates": {
+    "x": 500.0,
+    "y": 37
+  },
+  "area": 100,
+  "population": 100,
+  "capital": false,
+  "standardOfLiving": "HIGH",
+  "governor": {
+    "age": 25
+  }
+}
+
+### Ошибка: координаты y < -663
+POST http://localhost:8080/cities
+Content-Type: application/json
+
+{
+  "name": "Test City",
+  "coordinates": {
+    "x": 50.0,
+    "y": -700
+  },
+  "area": 100,
+  "population": 100,
+  "capital": false,
+  "standardOfLiving": "HIGH",
+  "governor": {
+    "age": 25
+  }
+}

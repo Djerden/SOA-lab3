@@ -1,0 +1,20 @@
+# Genocide Service API Tests
+# Base URL: http://localhost:8081
+
+### ===== GENOCIDE OPERATIONS =====
+
+### Уничтожить население города (kill)
+### Устанавливает population = 0 для города с указанным ID
+POST http://localhost:8081/genocide/kill/1
+
+### Переселить население в самый бедный город
+### Находит город с самым низким standardOfLiving и переселяет туда население
+POST http://localhost:8081/genocide/move-to-poorest/1
+
+### ===== ERROR CASES =====
+
+### Ошибка: город не найден
+POST http://localhost:8081/genocide/kill/999
+
+### Ошибка: город не найден при переселении
+POST http://localhost:8081/genocide/move-to-poorest/999

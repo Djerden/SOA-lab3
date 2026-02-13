@@ -5,27 +5,51 @@ import com.djeno.city_service.persistence.enums.StandardOfLiving;
 import com.djeno.city_service.persistence.models.City;
 import com.djeno.city_service.persistence.models.Coordinates;
 import com.djeno.city_service.persistence.models.Human;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record UpdateCityRequest(
+        @NotBlank(message = "Name is required and cannot be blank")
+        @NotNull(message = "Name is required")
         String name,
+        
+        @NotNull(message = "Coordinates are required")
+        @Valid
         Coordinates coordinates,
+        
+        @Min(value = 1, message = "Area must be greater than 0")
+        @NotNull(message = "Area is required")
         Long area,
+        
+        @Min(value = 1, message = "Population must be greater than 0")
+        @NotNull(message = "Population is required")
         Long population,
+        
         Double metersAboveSeaLevel,
+        
+        @NotNull(message = "Capital is required")
         Boolean capital,
+        
         Climate climate,
+        
+        @NotNull(message = "Standard of living is required")
         StandardOfLiving standardOfLiving,
+        
+        @NotNull(message = "Governor is required")
+        @Valid
         Human governor
 ) {
     public void applyTo(City city) {
-        if (this.name != null) city.setName(this.name);
-        if (this.coordinates != null) city.setCoordinates(this.coordinates);
-        if (this.area != null) city.setArea(this.area);
-        if (this.population != null) city.setPopulation(this.population);
-        if (this.metersAboveSeaLevel != null) city.setMetersAboveSeaLevel(this.metersAboveSeaLevel);
-        if (this.capital != null) city.setCapital(this.capital);
-        if (this.climate != null) city.setClimate(this.climate);
-        if (this.standardOfLiving != null) city.setStandardOfLiving(this.standardOfLiving);
-        if (this.governor != null) city.setGovernor(this.governor);
+        city.setName(this.name);
+        city.setCoordinates(this.coordinates);
+        city.setArea(this.area);
+        city.setPopulation(this.population);
+        city.setMetersAboveSeaLevel(this.metersAboveSeaLevel);
+        city.setCapital(this.capital);
+        city.setClimate(this.climate);
+        city.setStandardOfLiving(this.standardOfLiving);
+        city.setGovernor(this.governor);
     }
 }

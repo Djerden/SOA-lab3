@@ -16,7 +16,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/city-service/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
       interval: 30s      # Интервал между хелфчеками
       timeout: 10s       # Максимальное время ожидания ответа от команды проверки
       retries: 3         # Количество повторов, перед тем как посчитать контейнер мертвым
@@ -32,18 +32,16 @@ services:
     ports:
       - "8081:8080"
     environment:
-      - DB_URL=jdbc:postgresql://postgres:5432/postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - CITY_SERVICE_URL=http://city-service:8080/
     depends_on:
-      postgres:
+      city-service:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 120s
+      start_period: 30s
     networks:
       - app-network
 

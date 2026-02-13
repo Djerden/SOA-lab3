@@ -3,7 +3,7 @@ package com.djeno.city_service.persistence.models;
 import com.djeno.city_service.persistence.enums.Climate;
 import com.djeno.city_service.persistence.enums.StandardOfLiving;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Max;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,48 +15,54 @@ import java.time.LocalDateTime;
 @Table(name = "cities")
 @Entity
 public class City {
-    //Значение поля должно быть больше 0, Значение этого поля должно быть уникальным, Значение этого поля должно генерироваться автоматически
+    // Значение поля должно быть больше 0, Значение этого поля должно быть уникальным, Значение этого поля должно генерироваться автоматически
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    //Поле не может быть null, Строка не может быть пустой
+    // Поле не может быть null, Строка не может быть пустой
     @NotNull
     @NotBlank
     private String name;
 
-    //Поле не может быть null
+    // Поле не может быть null
     @NotNull
     @Embedded
+    @Valid
     private Coordinates coordinates;
 
-    //Поле не может быть null, Значение этого поля должно генерироваться автоматически
+    // Поле не может быть null, Значение этого поля должно генерироваться автоматически
     @NotNull
     private LocalDateTime creationDate;
 
-    //Значение поля должно быть больше 0
+    // Значение поля должно быть больше 0
+    @NotNull
     @Min(1)
-    private long area;
+    private Long area;
 
-    //Значение поля должно быть больше 0
-    @Min(1)
-    private long population;
+    // Значение поля должно быть больше 0
+    @NotNull
+    @Min(0)
+    private Long population;
 
     private Double metersAboveSeaLevel;
 
-    private boolean capital;
+    @NotNull
+    private Boolean capital;
 
-    //Поле может быть null
+    // Поле может быть null
     @Enumerated(EnumType.STRING)
     private Climate climate;
 
-    //Поле может быть null
+    // Поле не может быть null
+    @NotNull
     @Enumerated(EnumType.STRING)
     private StandardOfLiving standardOfLiving;
 
-    //Поле не может быть null
+    // Поле не может быть null
     @NotNull
     @Embedded
+    @Valid
     private Human governor;
 
     // Вызывается только раз перед сохранением объекта в БД (INSERT)

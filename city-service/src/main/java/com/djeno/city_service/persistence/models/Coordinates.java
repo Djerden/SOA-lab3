@@ -2,6 +2,7 @@ package com.djeno.city_service.persistence.models;
 
 import jakarta.persistence.Embeddable;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -9,13 +10,13 @@ import lombok.Data;
 @Embeddable
 public class Coordinates {
 
-
-    //Поле не может быть null
+    // Максимальное значение поля: 329
     @NotNull
-    private Long x;
+    @Max(329)
+    private Double x;
 
-    //Максимальное значение поля: 554, Поле не может быть null
+    // Минимальное значение поля: -663
     @NotNull
-    @Max(554)
-    private Double y;
+    @Min(-663)
+    private Long y;
 }

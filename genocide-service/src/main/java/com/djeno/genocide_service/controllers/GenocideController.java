@@ -24,8 +24,7 @@ public class GenocideController {
 
     @PostMapping("/move-to-poorest/{id}")
     public ResponseEntity<ResponseMessage> movePopulationToPoorestCity(@PathVariable int id) {
-        genocideService.movePopulationToPoorestCity(id);
-        return ResponseEntity.ok().body(new ResponseMessage("Население города переселено в город с id: " + id));
+        int targetCityId = genocideService.movePopulationToPoorestCity(id);
+        return ResponseEntity.ok().body(new ResponseMessage("Население города с id " + id + " переселено в город с id: " + targetCityId));
     }
-
 }
