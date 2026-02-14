@@ -32,7 +32,16 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 openssl pkcs12 -export -in "$SSL_DIR/server.crt" -inkey "$SSL_DIR/server.key" \
     -out "$SSL_DIR/keystore.p12" -name tomcat -password pass:changeit
 
+# Создание truststore с сертификатом сервера (для клиентов)
+keytool -import -trustcacerts -alias server-cert \
+    -file "$SSL_DIR/server.crt" \
+    -keystore "$SSL_DIR/truststore.p12" \
+    -storetype PKCS12 \
+    -storepass changeit \
+    -noprompt
+
 echo "SSL сертификаты сгенерированы в директории $SSL_DIR"
 echo "  - server.key: приватный ключ"
 echo "  - server.crt: сертификат"
 echo "  - keystore.p12: Java keystore (пароль: changeit)"
+echo "  - truststore.p12: Java truststore для клиентов (пароль: changeit)"

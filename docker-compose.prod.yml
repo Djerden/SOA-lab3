@@ -51,8 +51,11 @@ services:
       - CITY_SERVICE_URL=https://city-service:8443/
       - SSL_KEYSTORE=/app/ssl/keystore.p12
       - SSL_KEYSTORE_PASSWORD=changeit
+      - SSL_TRUSTSTORE=/app/ssl/truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=changeit
     volumes:
       - ./ssl/keystore.p12:/app/ssl/keystore.p12:ro
+      - ./ssl/truststore.p12:/app/ssl/truststore.p12:ro
     depends_on:
       city-service:
         condition: service_healthy
