@@ -5,6 +5,7 @@ import com.djeno.city_service.persistence.enums.StandardOfLiving;
 import com.djeno.city_service.persistence.models.City;
 import com.djeno.city_service.persistence.models.Coordinates;
 import com.djeno.city_service.persistence.models.Human;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

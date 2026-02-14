@@ -1,6 +1,7 @@
 package com.djeno.city_service.persistence.dto;
 
 import com.djeno.city_service.persistence.enums.Climate;
+
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;

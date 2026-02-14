@@ -1,26 +1,46 @@
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: soa-frontend
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      city-service:
+        condition: service_healthy
+      genocide-service:
+        condition: service_healthy
+    networks:
+      - app-network
+
   city-service:
     build:
       context: ./city-service
       dockerfile: Dockerfile
     container_name: soa-city-service-wildfly
     ports:
-      - "8080:8080"    # Приклад
+      - "8443:8443"    # HTTPS
       - "9990:9990"    # Консоль WildFly
       - "8787:8787"    # Порт для дебага
     environment:
       - DB_URL=jdbc:postgresql://postgres:5432/postgres
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+    volumes:
+      - ./ssl/keystore.p12:/opt/jboss/wildfly/standalone/configuration/keystore.p12:ro
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
-      interval: 30s      # Интервал между хелфчеками
-      timeout: 10s       # Максимальное время ожидания ответа от команды проверки
-      retries: 3         # Количество повторов, перед тем как посчитать контейнер мертвым
-      start_period: 120s # Время на запуск
+      test: [ "CMD", "curl", "-fk", "https://localhost:8443/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     networks:
       - app-network
 
@@ -30,14 +50,18 @@ services:
       dockerfile: Dockerfile
     container_name: soa-genocide-service-jetty
     ports:
-      - "8081:8080"
+      - "8444:8443"    # HTTPS
     environment:
-      - CITY_SERVICE_URL=http://city-service:8080/
+      - CITY_SERVICE_URL=https://city-service:8443/
+      - SSL_KEYSTORE=/app/ssl/keystore.p12
+      - SSL_KEYSTORE_PASSWORD=changeit
+    volumes:
+      - ./ssl/keystore.p12:/app/ssl/keystore.p12:ro
     depends_on:
       city-service:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      test: [ "CMD", "curl", "-fk", "https://localhost:8443/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

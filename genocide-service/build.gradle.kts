@@ -33,6 +33,9 @@ dependencies {
     }
     implementation("org.springframework.boot:spring-boot-starter-jetty")
 
+    // Apache HttpClient 5 для SSL поддержки
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.4.1")
+
     // Metrics
 	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 

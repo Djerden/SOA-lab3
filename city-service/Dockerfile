@@ -7,14 +7,14 @@ ENV DEPLOYMENT_DIR $WILDFLY_HOME/standalone/deployments
 # Admin for management console
 RUN $WILDFLY_HOME/bin/add-user.sh admin admin --silent
 
-# Копируем модуль Postgres
-# COPY wildfly/modules $WILDFLY_HOME/modules
+# Копируем keystore для SSL
+COPY ssl/keystore.p12 $WILDFLY_HOME/standalone/configuration/keystore.p12
 
-# Копируем CLI-скрипт
-# COPY wildfly/setup.cli /opt/jboss/wildfly/setup.cli
+# Копируем CLI-скрипт для настройки SSL
+COPY wildfly/configure-ssl.cli /opt/jboss/wildfly/configure-ssl.cli
 
-# Выполняем CLI (создаёт datasource!)
-# RUN $WILDFLY_HOME/bin/jboss-cli.sh --file=/opt/jboss/wildfly/setup.cli || true
+# Выполняем CLI для настройки HTTPS
+RUN $WILDFLY_HOME/bin/jboss-cli.sh --file=/opt/jboss/wildfly/configure-ssl.cli
 
 # WAR file
 COPY build/libs/city-service-0.0.1-SNAPSHOT.war $DEPLOYMENT_DIR/
@@ -22,7 +22,8 @@ COPY build/libs/city-service-0.0.1-SNAPSHOT.war $DEPLOYMENT_DIR/
 # Create marker file for auto-deployment
 RUN touch $DEPLOYMENT_DIR/city-service.war.dodeploy
 
-EXPOSE 8080 9990 8787
+# HTTPS порт
+EXPOSE 8443 9990 8787
 
 # Start WildFly
 CMD ["/opt/jboss/wildfly/bin/standalone.sh", "-b", "0.0.0.0", "-bmanagement", "0.0.0.0"]

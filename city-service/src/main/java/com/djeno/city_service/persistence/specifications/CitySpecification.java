@@ -1,24 +1,35 @@
 package com.djeno.city_service.persistence.specifications;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.data.jpa.domain.Specification;
+
 import com.djeno.city_service.persistence.dto.FilterRule;
+import com.djeno.city_service.persistence.dto.SortRule;
 import com.djeno.city_service.persistence.enums.Climate;
 import com.djeno.city_service.persistence.enums.StandardOfLiving;
 import com.djeno.city_service.persistence.models.City;
+
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import org.springframework.data.jpa.domain.Specification;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class CitySpecification implements Specification<City> {
 
     private final List<FilterRule> filters;
+    private final List<SortRule> sortRules;
 
     public CitySpecification(List<FilterRule> filters) {
+        this(filters, null);
+    }
+
+    public CitySpecification(List<FilterRule> filters, List<SortRule> sortRules) {
         this.filters = filters != null ? filters : new ArrayList<>();
+        this.sortRules = sortRules != null ? sortRules : new ArrayList<>();
     }
 
     @Override
@@ -49,14 +60,56 @@ public class CitySpecification implements Specification<City> {
             }
         }
 
+        // Добавляем кастомную сортировку для standardOfLiving
+        if (!sortRules.isEmpty() && query.getResultType() != Long.class && query.getResultType() != long.class) {
+            List<Order> orders = new ArrayList<>();
+            for (SortRule sortRule : sortRules) {
+                if ("standardOfLiving".equals(sortRule.getField())) {
+                    // Создаём CASE WHEN для правильной сортировки по уровню жизни
+                    // HIGH = 0 (лучший), VERY_LOW = 1, ULTRA_LOW = 2 (худший)
+                    Expression<Integer> solOrder = cb.<Integer>selectCase()
+                            .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.HIGH), 0)
+                            .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.VERY_LOW), 1)
+                            .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.ULTRA_LOW), 2)
+                            .otherwise(3);
+                    
+                    if ("desc".equalsIgnoreCase(sortRule.getDirection())) {
+                        orders.add(cb.desc(solOrder));
+                    } else {
+                        orders.add(cb.asc(solOrder));
+                    }
+                } else {
+                    if ("desc".equalsIgnoreCase(sortRule.getDirection())) {
+                        orders.add(cb.desc(root.get(sortRule.getField())));
+                    } else {
+                        orders.add(cb.asc(root.get(sortRule.getField())));
+                    }
+                }
+            }
+            if (!orders.isEmpty()) {
+                query.orderBy(orders);
+            }
+        }
+
         return cb.and(predicates.toArray(new Predicate[0]));
+    }
+
+    // Создаёт числовое значение для уровня жизни для корректного сравнения
+    // HIGH = 0 (лучший), VERY_LOW = 1, ULTRA_LOW = 2 (худший)
+    private Expression<Integer> getStandardOfLivingOrder(Root<City> root, CriteriaBuilder cb) {
+        return cb.<Integer>selectCase()
+                .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.HIGH), 0)
+                .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.VERY_LOW), 1)
+                .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.ULTRA_LOW), 2)
+                .otherwise(3);
     }
 
     private Predicate buildStringPredicate(Root<City> root, CriteriaBuilder cb, String field, String operator, String value) {
         return switch (operator) {
             case "eq" -> cb.equal(root.get(field), value);
             case "ne" -> cb.notEqual(root.get(field), value);
-            default -> cb.equal(root.get(field), value);
+            case "contains" -> cb.like(cb.lower(root.get(field)), "%" + value.toLowerCase() + "%");
+            default -> cb.like(cb.lower(root.get(field)), "%" + value.toLowerCase() + "%"); // по умолчанию частичное совпадение
         };
     }
 

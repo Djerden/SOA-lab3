@@ -3,6 +3,7 @@ package com.djeno.city_service.services;
 import com.djeno.city_service.exceptions.CityNotFoundException;
 import com.djeno.city_service.persistence.dto.*;
 import com.djeno.city_service.persistence.enums.Climate;
+import com.djeno.city_service.persistence.enums.StandardOfLiving;
 import com.djeno.city_service.persistence.models.City;
 import com.djeno.city_service.persistence.repositories.CityRepository;
 import com.djeno.city_service.persistence.specifications.CitySpecification;
@@ -27,14 +28,18 @@ public class CityService {
     public CityFilterResponse filterCities(CityFilterRequest request) {
         long startTime = System.currentTimeMillis();
         
-        // Создаем сортировку
-        Sort sort = buildSort(request.getSort());
+        // Проверяем, есть ли сортировка по standardOfLiving
+        boolean hasStandardOfLivingSort = request.getSort() != null && 
+                request.getSort().stream().anyMatch(s -> "standardOfLiving".equals(s.getField()));
+        
+        // Создаем сортировку (без standardOfLiving, он обрабатывается в Specification)
+        Sort sort = buildSort(request.getSort(), hasStandardOfLivingSort);
         
         // Создаем пагинацию (page в запросе начинается с 1, а в Spring Data с 0)
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getSize(), sort);
         
-        // Создаем спецификацию для фильтрации
-        CitySpecification specification = new CitySpecification(request.getFilters());
+        // Создаем спецификацию для фильтрации (передаём sortRules для кастомной сортировки)
+        CitySpecification specification = new CitySpecification(request.getFilters(), request.getSort());
         
         // Выполняем запрос
         Page<City> cityPage = cityRepository.findAll(specification, pageable);
@@ -57,20 +62,27 @@ public class CityService {
                 .build();
     }
     
-    private Sort buildSort(List<SortRule> sortRules) {
+    private Sort buildSort(List<SortRule> sortRules, boolean excludeStandardOfLiving) {
         if (sortRules == null || sortRules.isEmpty()) {
             return Sort.unsorted();
         }
         
         List<Sort.Order> orders = new ArrayList<>();
         for (SortRule rule : sortRules) {
+            String field = rule.getField();
+            
+            // Пропускаем standardOfLiving, он обрабатывается в Specification через CASE WHEN
+            if (excludeStandardOfLiving && "standardOfLiving".equals(field)) {
+                continue;
+            }
+            
             Sort.Direction direction = "desc".equalsIgnoreCase(rule.getDirection()) 
                     ? Sort.Direction.DESC 
                     : Sort.Direction.ASC;
-            orders.add(new Sort.Order(direction, rule.getField()));
+            orders.add(new Sort.Order(direction, field));
         }
         
-        return Sort.by(orders);
+        return orders.isEmpty() ? Sort.unsorted() : Sort.by(orders);
     }
 
     @Transactional
@@ -114,10 +126,22 @@ public class CityService {
         return cityRepository.countByClimate(climate);
     }
     
-    // Получить город с самым низким уровнем жизни
-    public City getPoorestCity() {
-        return cityRepository.findFirstByOrderByStandardOfLivingDesc()
-                .orElseThrow(() -> new CityNotFoundException("No cities found"));
+    // Получить город с самым низким уровнем жизни, но не выше указанного уровня
+    public City getPoorestCity(Integer excludeId, StandardOfLiving maxStandardOfLiving) {
+        int maxLevel = standardOfLivingToLevel(maxStandardOfLiving);
+        int excludeIdValue = excludeId != null ? excludeId : -1;
+        
+        return cityRepository.findPoorestCityWithMaxLevel(excludeIdValue, maxLevel)
+                .orElseThrow(() -> new CityNotFoundException("No suitable city found for relocation"));
+    }
+    
+    private int standardOfLivingToLevel(StandardOfLiving sol) {
+        if (sol == null) return 2; // HIGH по умолчанию (любой город подходит)
+        return switch (sol) {
+            case ULTRA_LOW -> 0;
+            case VERY_LOW -> 1;
+            case HIGH -> 2;
+        };
     }
     
     // Уничтожить население города (установить население в 0)
