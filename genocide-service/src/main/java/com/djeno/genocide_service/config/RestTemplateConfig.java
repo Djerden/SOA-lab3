@@ -1,7 +1,8 @@
 package com.djeno.genocide_service.config;
 
-import javax.net.ssl.SSLContext;
 import java.io.File;
+
+import javax.net.ssl.SSLContext;
 
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;

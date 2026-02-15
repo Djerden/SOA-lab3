@@ -4,3 +4,9 @@
 requirements.md
 # Ignore Gradle build output directory
 build
+
+# SSL certificates (generated locally on each server)
+ssl/*.p12
+ssl/*.crt
+ssl/*.key
+ssl/*.pem
