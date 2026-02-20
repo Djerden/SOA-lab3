@@ -3,7 +3,6 @@ import { translateError, translateMessage } from '../utils/errorTranslation';
 
 const BASE_URL = config.genocideServiceUrl;
 
-// Общий обработчик ответов
 const handleResponse = async (response) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -14,12 +13,10 @@ const handleResponse = async (response) => {
     throw error;
   }
   
-  // Для 204 No Content возвращаем null
   if (response.status === 204) {
     return null;
   }
   
-  // Проверяем, есть ли тело ответа
   const text = await response.text();
   if (!text) {
     return null;
@@ -32,7 +29,6 @@ const handleResponse = async (response) => {
   }
 };
 
-// Уничтожить население города
 export const killPopulation = async (id) => {
   const response = await fetch(`${BASE_URL}/genocide/kill/${id}`, {
     method: 'POST',
@@ -40,7 +36,6 @@ export const killPopulation = async (id) => {
   return handleResponse(response);
 };
 
-// Переселить население в город с самым низким уровнем жизни
 export const moveToPoorest = async (id) => {
   const response = await fetch(`${BASE_URL}/genocide/move-to-poorest/${id}`, {
     method: 'POST',

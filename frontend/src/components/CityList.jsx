@@ -32,21 +32,17 @@ export default function CityList({ onEdit, refreshTrigger }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Pagination
   const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
   
-  // Sorting
   const [sortRules, setSortRules] = useState([]);
   
-  // Filtering
   const [filterRules, setFilterRules] = useState([]);
 
   const loadCities = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // Отфильтровываем пустые значения
       const validFilters = filterRules.filter(f => f.value !== null && f.value !== undefined && f.value.trim() !== '');
       
       const result = await filterCities({

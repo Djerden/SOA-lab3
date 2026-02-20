@@ -1,4 +1,322 @@
 services:
+  # ===== Consul Service Discovery =====
+  consul:
+    image: hashicorp/consul:latest
+    container_name: consul
+    ports:
+      - "8500:8500"  # Web UI
+      - "8600:8600/udp"  # DNS
+    command: agent -server -bootstrap -ui -client=0.0.0.0
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # ===== HAProxy Load Balancer with Consul-Template =====
+  haproxy:
+    build:
+      context: ./haproxy
+      dockerfile: Dockerfile
+    container_name: haproxy
+    ports:
+      - "8443:8443"    # City Service HTTPS
+      - "8444:8444"    # Genocide Service HTTPS
+      - "8404:8404"    # HAProxy Stats
+    environment:
+      - CONSUL_ADDR=consul:8500
+    volumes:
+      - ./ssl/haproxy.pem:/etc/haproxy/certs/haproxy.pem:ro
+    depends_on:
+      consul:
+        condition: service_healthy
+      city-service-1-registrator:
+        condition: service_started
+      city-service-2-registrator:
+        condition: service_started
+      genocide-service-1-registrator:
+        condition: service_started
+      genocide-service-2-registrator:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8404/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - app-network
+
+  # ===== City Service Instance 1 =====
+  city-service-1:
+    build:
+      context: ./city-service
+      dockerfile: Dockerfile
+    container_name: city-service-1
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - SERVICE_NAME=city-service
+      - SERVICE_8080_NAME=city-service
+      - SERVICE_8080_CHECK_HTTP=/actuator/health
+      - SERVICE_8080_CHECK_INTERVAL=15s
+      - SERVICE_8080_CHECK_TIMEOUT=5s
+    volumes:
+      - ./ssl/keystore.p12:/opt/jboss/wildfly/standalone/configuration/keystore.p12:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - app-network
+
+  # Consul registration sidecar for city-service-1 (periodic re-registration)
+  city-service-1-registrator:
+    image: curlimages/curl:latest
+    container_name: city-service-1-registrator
+    depends_on:
+      city-service-1:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          IP=$$(getent hosts city-service-1 | awk '{print $$1}')
+          if [ -n "$$IP" ]; then
+            curl -s -X PUT "http://consul:8500/v1/agent/service/register" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"ID\": \"city-service-1\",
+                \"Name\": \"city-service\",
+                \"Address\": \"$$IP\",
+                \"Port\": 8080,
+                \"Tags\": [\"city-service\", \"wildfly\", \"spring-boot\"],
+                \"Check\": {
+                  \"HTTP\": \"http://$$IP:8080/actuator/health\",
+                  \"Interval\": \"15s\",
+                  \"Timeout\": \"5s\",
+                  \"DeregisterCriticalServiceAfter\": \"1m\"
+                }
+              }"
+            echo " [city-service-1] Registered with IP: $$IP"
+          fi
+          sleep 30
+        done
+    restart: always
+    networks:
+      - app-network
+
+  # ===== City Service Instance 2 =====
+  city-service-2:
+    build:
+      context: ./city-service
+      dockerfile: Dockerfile
+    container_name: city-service-2
+    environment:
+      - DB_URL=jdbc:postgresql://postgres:5432/postgres
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - SERVICE_NAME=city-service
+      - SERVICE_8080_NAME=city-service
+      - SERVICE_8080_CHECK_HTTP=/actuator/health
+      - SERVICE_8080_CHECK_INTERVAL=15s
+      - SERVICE_8080_CHECK_TIMEOUT=5s
+    volumes:
+      - ./ssl/keystore.p12:/opt/jboss/wildfly/standalone/configuration/keystore.p12:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      consul:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - app-network
+
+  # Consul registration sidecar for city-service-2 (periodic re-registration)
+  city-service-2-registrator:
+    image: curlimages/curl:latest
+    container_name: city-service-2-registrator
+    depends_on:
+      city-service-2:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          IP=$$(getent hosts city-service-2 | awk '{print $$1}')
+          if [ -n "$$IP" ]; then
+            curl -s -X PUT "http://consul:8500/v1/agent/service/register" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"ID\": \"city-service-2\",
+                \"Name\": \"city-service\",
+                \"Address\": \"$$IP\",
+                \"Port\": 8080,
+                \"Tags\": [\"city-service\", \"wildfly\", \"spring-boot\"],
+                \"Check\": {
+                  \"HTTP\": \"http://$$IP:8080/actuator/health\",
+                  \"Interval\": \"15s\",
+                  \"Timeout\": \"5s\",
+                  \"DeregisterCriticalServiceAfter\": \"1m\"
+                }
+              }"
+            echo " [city-service-2] Registered with IP: $$IP"
+          fi
+          sleep 30
+        done
+    restart: always
+    networks:
+      - app-network
+
+  # ===== Genocide Service Instance 1 (WildFly + EJB) =====
+  genocide-service-1:
+    build:
+      context: ./genocide-service
+      dockerfile: Dockerfile
+    container_name: genocide-service-1
+    environment:
+      - CITY_SERVICE_URL=https://haproxy:8443/
+      - SSL_TRUSTSTORE=/opt/jboss/wildfly/standalone/configuration/truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=changeit
+      - EJB_POOL_MAX_SIZE=20
+      - SERVICE_NAME=genocide-service
+      - SERVICE_8080_NAME=genocide-service
+      - SERVICE_8080_CHECK_HTTP=/actuator/health
+      - SERVICE_8080_CHECK_INTERVAL=15s
+      - SERVICE_8080_CHECK_TIMEOUT=5s
+    volumes:
+      - ./ssl/keystore.p12:/opt/jboss/wildfly/standalone/configuration/keystore.p12:ro
+      - ./ssl/truststore.p12:/opt/jboss/wildfly/standalone/configuration/truststore.p12:ro
+    depends_on:
+      city-service-1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - app-network
+
+  # Consul registration sidecar for genocide-service-1 (periodic re-registration)
+  genocide-service-1-registrator:
+    image: curlimages/curl:latest
+    container_name: genocide-service-1-registrator
+    depends_on:
+      genocide-service-1:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          IP=$$(getent hosts genocide-service-1 | awk '{print $$1}')
+          if [ -n "$$IP" ]; then
+            curl -s -X PUT "http://consul:8500/v1/agent/service/register" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"ID\": \"genocide-service-1\",
+                \"Name\": \"genocide-service\",
+                \"Address\": \"$$IP\",
+                \"Port\": 8080,
+                \"Tags\": [\"genocide-service\", \"wildfly\", \"ejb\"],
+                \"Check\": {
+                  \"HTTP\": \"http://$$IP:8080/actuator/health\",
+                  \"Interval\": \"15s\",
+                  \"Timeout\": \"5s\",
+                  \"DeregisterCriticalServiceAfter\": \"1m\"
+                }
+              }"
+            echo " [genocide-service-1] Registered with IP: $$IP"
+          fi
+          sleep 30
+        done
+    restart: always
+    networks:
+      - app-network
+
+  # ===== Genocide Service Instance 2 (WildFly + EJB) =====
+  genocide-service-2:
+    build:
+      context: ./genocide-service
+      dockerfile: Dockerfile
+    container_name: genocide-service-2
+    environment:
+      - CITY_SERVICE_URL=https://haproxy:8443/
+      - SSL_TRUSTSTORE=/opt/jboss/wildfly/standalone/configuration/truststore.p12
+      - SSL_TRUSTSTORE_PASSWORD=changeit
+      - EJB_POOL_MAX_SIZE=20
+      - SERVICE_NAME=genocide-service
+      - SERVICE_8080_NAME=genocide-service
+      - SERVICE_8080_CHECK_HTTP=/actuator/health
+      - SERVICE_8080_CHECK_INTERVAL=15s
+      - SERVICE_8080_CHECK_TIMEOUT=5s
+    volumes:
+      - ./ssl/keystore.p12:/opt/jboss/wildfly/standalone/configuration/keystore.p12:ro
+      - ./ssl/truststore.p12:/opt/jboss/wildfly/standalone/configuration/truststore.p12:ro
+    depends_on:
+      city-service-1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - app-network
+
+  # Consul registration sidecar for genocide-service-2 (periodic re-registration)
+  genocide-service-2-registrator:
+    image: curlimages/curl:latest
+    container_name: genocide-service-2-registrator
+    depends_on:
+      genocide-service-2:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          IP=$$(getent hosts genocide-service-2 | awk '{print $$1}')
+          if [ -n "$$IP" ]; then
+            curl -s -X PUT "http://consul:8500/v1/agent/service/register" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"ID\": \"genocide-service-2\",
+                \"Name\": \"genocide-service\",
+                \"Address\": \"$$IP\",
+                \"Port\": 8080,
+                \"Tags\": [\"genocide-service\", \"wildfly\", \"ejb\"],
+                \"Check\": {
+                  \"HTTP\": \"http://$$IP:8080/actuator/health\",
+                  \"Interval\": \"15s\",
+                  \"Timeout\": \"5s\",
+                  \"DeregisterCriticalServiceAfter\": \"1m\"
+                }
+              }"
+            echo " [genocide-service-2] Registered with IP: $$IP"
+          fi
+          sleep 30
+        done
+    restart: always
+    networks:
+      - app-network
+
+  # ===== Frontend =====
   frontend:
     build:
       context: ./frontend
@@ -10,68 +328,12 @@ services:
     volumes:
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
-      city-service:
-        condition: service_healthy
-      genocide-service:
+      haproxy:
         condition: service_healthy
     networks:
       - app-network
 
-  city-service:
-    build:
-      context: ./city-service
-      dockerfile: Dockerfile
-    container_name: soa-city-service-wildfly
-    ports:
-      - "8443:8443"    # HTTPS
-      - "9990:9990"    # Консоль WildFly
-      - "8787:8787"    # Порт для дебага
-    environment:
-      - DB_URL=jdbc:postgresql://postgres:5432/postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-    volumes:
-      - ./ssl/keystore.p12:/opt/jboss/wildfly/standalone/configuration/keystore.p12:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-fk", "https://localhost:8443/actuator/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    networks:
-      - app-network
-
-  genocide-service:
-    build:
-      context: ./genocide-service
-      dockerfile: Dockerfile
-    container_name: soa-genocide-service-jetty
-    ports:
-      - "8444:8443"    # HTTPS
-    environment:
-      - CITY_SERVICE_URL=https://city-service:8443/
-      - SSL_KEYSTORE=/app/ssl/keystore.p12
-      - SSL_KEYSTORE_PASSWORD=changeit
-      - SSL_TRUSTSTORE=/app/ssl/truststore.p12
-      - SSL_TRUSTSTORE_PASSWORD=changeit
-    volumes:
-      - ./ssl/keystore.p12:/app/ssl/keystore.p12:ro
-      - ./ssl/truststore.p12:/app/ssl/truststore.p12:ro
-    depends_on:
-      city-service:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-fk", "https://localhost:8443/actuator/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    networks:
-      - app-network
-
+  # ===== PostgreSQL =====
   postgres:
     image: postgres:16-alpine
     container_name: soa-postgres
@@ -84,13 +346,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - app-network
 
+  # ===== Swagger UI =====
   swagger-ui:
     image: swaggerapi/swagger-ui:latest
     container_name: swagger-ui

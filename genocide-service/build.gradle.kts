@@ -1,61 +1,32 @@
 plugins {
-	java
-	id("org.springframework.boot") version "3.5.7"
-	id("io.spring.dependency-management") version "1.1.7"
+    java
+    id("io.spring.dependency-management") version "1.1.7" apply false
 }
 
-group = "com.djeno"
-version = "0.0.1-SNAPSHOT"
-description = "Demo project for Spring Boot"
+allprojects {
+    group = "com.djeno"
+    version = "0.0.1-SNAPSHOT"
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
-	}
-}
-
-configurations {
-	compileOnly {
-		extendsFrom(configurations.annotationProcessor.get())
-	}
-}
-
-repositories {
-	mavenCentral()
-}
-
-dependencies {
-	// Spring
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.boot:spring-boot-starter-web") {
-        exclude(group = "org.springframework.boot", module = "spring-boot-starter-tomcat")
+    repositories {
+        mavenCentral()
     }
-    implementation("org.springframework.boot:spring-boot-starter-jetty")
-
-    // Apache HttpClient 5 для SSL поддержки
-    implementation("org.apache.httpcomponents.client5:httpclient5:5.4.1")
-
-    // Metrics
-	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
-
-    // Lombok
-    compileOnly("org.projectlombok:lombok")
-	annotationProcessor("org.projectlombok:lombok")
-
-    // Tests
-	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.withType<Test> {
-	useJUnitPlatform()
-}
+subprojects {
+    apply(plugin = "java")
+    
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
 
-tasks.getByName<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    enabled = true
-}
+    dependencies {
+        compileOnly("org.projectlombok:lombok:1.18.36")
+        annotationProcessor("org.projectlombok:lombok:1.18.36")
+    }
 
-tasks.getByName<org.gradle.jvm.tasks.Jar>("jar") {
-    enabled = true
+    tasks.withType<JavaCompile> {
+        options.encoding = "UTF-8"
+    }
 }

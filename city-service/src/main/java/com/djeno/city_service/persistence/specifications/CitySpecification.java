@@ -60,13 +60,10 @@ public class CitySpecification implements Specification<City> {
             }
         }
 
-        // Добавляем кастомную сортировку для standardOfLiving
         if (!sortRules.isEmpty() && query.getResultType() != Long.class && query.getResultType() != long.class) {
             List<Order> orders = new ArrayList<>();
             for (SortRule sortRule : sortRules) {
                 if ("standardOfLiving".equals(sortRule.getField())) {
-                    // Создаём CASE WHEN для правильной сортировки по уровню жизни
-                    // HIGH = 0 (лучший), VERY_LOW = 1, ULTRA_LOW = 2 (худший)
                     Expression<Integer> solOrder = cb.<Integer>selectCase()
                             .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.HIGH), 0)
                             .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.VERY_LOW), 1)
@@ -94,8 +91,6 @@ public class CitySpecification implements Specification<City> {
         return cb.and(predicates.toArray(new Predicate[0]));
     }
 
-    // Создаёт числовое значение для уровня жизни для корректного сравнения
-    // HIGH = 0 (лучший), VERY_LOW = 1, ULTRA_LOW = 2 (худший)
     private Expression<Integer> getStandardOfLivingOrder(Root<City> root, CriteriaBuilder cb) {
         return cb.<Integer>selectCase()
                 .when(cb.equal(root.get("standardOfLiving"), StandardOfLiving.HIGH), 0)
@@ -126,12 +121,11 @@ public class CitySpecification implements Specification<City> {
     }
 
     private Predicate buildStandardOfLivingPredicate(Root<City> root, CriteriaBuilder cb, String operator, StandardOfLiving value) {
-        // StandardOfLiving: HIGH(0) > VERY_LOW(1) > ULTRA_LOW(2) - ordinal от лучшего к худшему
         return switch (operator) {
             case "eq" -> cb.equal(root.get("standardOfLiving"), value);
             case "ne" -> cb.notEqual(root.get("standardOfLiving"), value);
-            case "gt" -> cb.lessThan(root.get("standardOfLiving"), value); // better than
-            case "lt" -> cb.greaterThan(root.get("standardOfLiving"), value); // worse than
+            case "gt" -> cb.lessThan(root.get("standardOfLiving"), value);
+            case "lt" -> cb.greaterThan(root.get("standardOfLiving"), value); 
             case "gte" -> cb.lessThanOrEqualTo(root.get("standardOfLiving"), value);
             case "lte" -> cb.greaterThanOrEqualTo(root.get("standardOfLiving"), value);
             default -> cb.equal(root.get("standardOfLiving"), value);

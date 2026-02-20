@@ -81,7 +81,6 @@ public class CityController {
         return ResponseEntity.ok(new NumberOfCitiesResponse(count));
     }
 
-    // Получить город с самым низким уровнем жизни, но не выше указанного
     @GetMapping("/poorest")
     public ResponseEntity<City> getPoorestCity(
             @RequestParam(required = false) Integer excludeId,
@@ -90,14 +89,12 @@ public class CityController {
         return ResponseEntity.ok(city);
     }
 
-    // Уничтожить население города (установить население в 0)
     @PostMapping("/{id}/kill-population")
     public ResponseEntity<Void> killPopulation(@PathVariable int id) {
         cityService.killPopulation(id);
         return ResponseEntity.ok().build();
     }
 
-    // Переселить население из одного города в другой
     @PostMapping("/{fromId}/relocate-to/{toId}")
     public ResponseEntity<Void> relocatePopulation(@PathVariable int fromId, @PathVariable int toId) {
         cityService.relocatePopulation(fromId, toId);

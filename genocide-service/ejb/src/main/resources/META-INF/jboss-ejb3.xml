@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jboss:ejb-jar xmlns:jboss="urn:jboss:ejb3:2.0"
+               xmlns="https://jakarta.ee/xml/ns/jakartaee"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="urn:jboss:ejb3:2.0 jboss-ejb3-2_0.xsd
+                                   https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/ejb-jar_4_0.xsd"
+               version="4.0"
+               impl-version="2.0">
+    
+    <!-- Пустой файл, пул настраивается через CLI WildFly -->
+    
+</jboss:ejb-jar>

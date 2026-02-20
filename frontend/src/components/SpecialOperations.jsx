@@ -15,35 +15,25 @@ export default function SpecialOperations({ onDataChange }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // Genocide operations
   const [killId, setKillId] = useState('');
   const [moveId, setMoveId] = useState('');
 
-  // City special operations
   const [governorAge, setGovernorAge] = useState('');
   const [climateToCount, setClimateToCount] = useState('STEPPE');
 
-  // Ограничения ввода
-  const MAX_ID = 2147483647; // Integer.MAX_VALUE
+  const MAX_ID = 2147483647;
   const MAX_AGE = 200;
 
-  // Обработчик ввода для ID (только положительные целые числа, макс 10 цифр)
   const handleIdInput = (value, setter) => {
-    // Удаляем все нецифровые символы
     const filtered = value.replace(/\D/g, '');
-    // Ограничиваем до 10 символов (Integer.MAX_VALUE = 2147483647)
     if (filtered.length > 10) return;
-    // Проверяем, не превышает ли число максимум
     if (filtered && parseInt(filtered) > MAX_ID) return;
     setter(filtered);
   };
 
-  // Обработчик ввода для возраста (только положительные целые числа, макс 3 цифры)
   const handleAgeInput = (value) => {
     const filtered = value.replace(/\D/g, '');
-    // Ограничиваем до 3 символов
     if (filtered.length > 3) return;
-    // Проверяем, не превышает ли число максимум
     if (filtered && parseInt(filtered) > MAX_AGE) return;
     setGovernorAge(filtered);
   };

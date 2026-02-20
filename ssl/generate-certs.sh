@@ -26,7 +26,10 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout "$SSL_DIR/server.key" \
     -out "$SSL_DIR/server.crt" \
     -subj "/C=RU/ST=Moscow/L=Moscow/O=SOA Lab/OU=Development/CN=$SERVER_HOST" \
-    -addext "subjectAltName=DNS:localhost,DNS:city-service,DNS:genocide-service,DNS:frontend,$SAN_EXTRA,IP:127.0.0.1"
+    -addext "subjectAltName=DNS:localhost,DNS:city-service,DNS:city-service-1,DNS:city-service-2,DNS:genocide-service,DNS:genocide-service-1,DNS:genocide-service-2,DNS:haproxy,DNS:frontend,$SAN_EXTRA,IP:127.0.0.1"
+
+# Создание PEM файла для HAProxy (ключ + сертификат в одном файле)
+cat "$SSL_DIR/server.key" "$SSL_DIR/server.crt" > "$SSL_DIR/haproxy.pem"
 
 # Создание PKCS12 keystore для Java сервисов
 openssl pkcs12 -export -in "$SSL_DIR/server.crt" -inkey "$SSL_DIR/server.key" \
@@ -43,5 +46,6 @@ keytool -import -trustcacerts -alias server-cert \
 echo "SSL сертификаты сгенерированы в директории $SSL_DIR"
 echo "  - server.key: приватный ключ"
 echo "  - server.crt: сертификат"
+echo "  - haproxy.pem: PEM файл для HAProxy (ключ + сертификат)"
 echo "  - keystore.p12: Java keystore (пароль: changeit)"
 echo "  - truststore.p12: Java truststore для клиентов (пароль: changeit)"

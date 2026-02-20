@@ -28,20 +28,15 @@ public class CityService {
     public CityFilterResponse filterCities(CityFilterRequest request) {
         long startTime = System.currentTimeMillis();
         
-        // Проверяем, есть ли сортировка по standardOfLiving
         boolean hasStandardOfLivingSort = request.getSort() != null && 
                 request.getSort().stream().anyMatch(s -> "standardOfLiving".equals(s.getField()));
         
-        // Создаем сортировку (без standardOfLiving, он обрабатывается в Specification)
         Sort sort = buildSort(request.getSort(), hasStandardOfLivingSort);
         
-        // Создаем пагинацию (page в запросе начинается с 1, а в Spring Data с 0)
         Pageable pageable = PageRequest.of(request.getPage() - 1, request.getSize(), sort);
         
-        // Создаем спецификацию для фильтрации (передаём sortRules для кастомной сортировки)
         CitySpecification specification = new CitySpecification(request.getFilters(), request.getSort());
         
-        // Выполняем запрос
         Page<City> cityPage = cityRepository.findAll(specification, pageable);
         
         long endTime = System.currentTimeMillis();
@@ -71,7 +66,6 @@ public class CityService {
         for (SortRule rule : sortRules) {
             String field = rule.getField();
             
-            // Пропускаем standardOfLiving, он обрабатывается в Specification через CASE WHEN
             if (excludeStandardOfLiving && "standardOfLiving".equals(field)) {
                 continue;
             }
@@ -126,7 +120,6 @@ public class CityService {
         return cityRepository.countByClimate(climate);
     }
     
-    // Получить город с самым низким уровнем жизни, но не выше указанного уровня
     public City getPoorestCity(Integer excludeId, StandardOfLiving maxStandardOfLiving) {
         int maxLevel = standardOfLivingToLevel(maxStandardOfLiving);
         int excludeIdValue = excludeId != null ? excludeId : -1;
@@ -136,7 +129,7 @@ public class CityService {
     }
     
     private int standardOfLivingToLevel(StandardOfLiving sol) {
-        if (sol == null) return 2; // HIGH по умолчанию (любой город подходит)
+        if (sol == null) return 2;
         return switch (sol) {
             case ULTRA_LOW -> 0;
             case VERY_LOW -> 1;
@@ -144,7 +137,6 @@ public class CityService {
         };
     }
     
-    // Уничтожить население города (установить население в 0)
     @Transactional
     public void killPopulation(int id) {
         City city = cityRepository.findById(id)
@@ -153,7 +145,6 @@ public class CityService {
         cityRepository.save(city);
     }
     
-    // Переселить население из одного города в другой
     @Transactional
     public void relocatePopulation(int fromCityId, int toCityId) {
         City fromCity = cityRepository.findById(fromCityId)

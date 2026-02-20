@@ -1,0 +1,78 @@
+# WildFly CLI script for Genocide Service configuration
+# Configures SSL, EJB pool, and environment bindings
+
+embed-server --std-out=echo --server-config=standalone.xml
+
+# ===== SSL Configuration =====
+
+# Create keystore for server SSL
+/subsystem=elytron/key-store=server-keystore:add( \
+    path=keystore.p12, \
+    relative-to=jboss.server.config.dir, \
+    credential-reference={clear-text=changeit}, \
+    type=PKCS12 \
+)
+
+# Create key manager
+/subsystem=elytron/key-manager=server-key-manager:add( \
+    key-store=server-keystore, \
+    credential-reference={clear-text=changeit} \
+)
+
+# Create trust store
+/subsystem=elytron/key-store=server-truststore:add( \
+    path=truststore.p12, \
+    relative-to=jboss.server.config.dir, \
+    credential-reference={clear-text=changeit}, \
+    type=PKCS12 \
+)
+
+# Create trust manager
+/subsystem=elytron/trust-manager=server-trust-manager:add( \
+    key-store=server-truststore \
+)
+
+# Create SSL context
+/subsystem=elytron/server-ssl-context=server-ssl-context:add( \
+    key-manager=server-key-manager, \
+    trust-manager=server-trust-manager, \
+    protocols=["TLSv1.2", "TLSv1.3"] \
+)
+
+# Remove existing HTTPS listener if present, then add new one
+if (outcome == success) of /subsystem=undertow/server=default-server/https-listener=https:read-resource
+    /subsystem=undertow/server=default-server/https-listener=https:remove()
+end-if
+
+# Configure HTTPS listener
+/subsystem=undertow/server=default-server/https-listener=https:add( \
+    socket-binding=https, \
+    ssl-context=server-ssl-context, \
+    enable-http2=true \
+)
+
+# ===== EJB Pool Configuration =====
+
+# Create custom bean instance pool with configurable size
+/subsystem=ejb3/strict-max-bean-instance-pool=genocide-pool:add( \
+    max-pool-size=${env.EJB_POOL_MAX_SIZE:20}, \
+    timeout=5, \
+    timeout-unit=MINUTES \
+)
+
+# Set genocide-pool as default for stateless beans
+/subsystem=ejb3:write-attribute(name=default-slsb-instance-pool, value=genocide-pool)
+
+# Enable statistics for monitoring
+/subsystem=ejb3:write-attribute(name=enable-statistics, value=true)
+
+# ===== System Properties =====
+
+# City Service URL
+/system-property=CITY_SERVICE_URL:add(value="${env.CITY_SERVICE_URL:https://city-service:8443/}")
+
+# SSL Trust Store
+/system-property=SSL_TRUSTSTORE:add(value="${env.SSL_TRUSTSTORE:/opt/jboss/wildfly/standalone/configuration/truststore.p12}")
+/system-property=SSL_TRUSTSTORE_PASSWORD:add(value="${env.SSL_TRUSTSTORE_PASSWORD:changeit}")
+
+stop-embedded-server

@@ -24,6 +24,124 @@
 
 **Оба веб-сервиса и клиентское приложение должны сохранить полную совместимость с API, реализованными в рамках предыдущих лабораторных работ.**
 
+---
+
+## Архитектура решения
+
+### Компоненты:
+
+```
+┌─────────────┐     ┌──────────────────────────────────────────┐
+│   Frontend  │────>│              HAProxy                     │
+│   (Nginx)   │     │  :8443 -> City Service (Round Robin)     │
+└─────────────┘     │  :8444 -> Genocide Service (Round Robin) │
+                    └──────────────────────────────────────────┘
+                              │                    │
+              ┌───────────────┼───────────────┐    │
+              ▼               ▼               │    │
+    ┌──────────────┐  ┌──────────────┐       │    │
+    │City Service 1│  │City Service 2│       │    │
+    │ (Spring Boot │  │ (Spring Boot │       │    │
+    │  + WildFly)  │  │  + WildFly)  │       │    │
+    └──────┬───────┘  └──────┬───────┘       │    │
+           │                 │               │    │
+           ▼                 ▼               │    │
+    ┌─────────────────────────────────┐      │    │
+    │           Consul                │      │    │
+    │    (Service Discovery)          │      │    │
+    └─────────────────────────────────┘      │    │
+                                             │    │
+              ┌──────────────────────────────┼────┘
+              ▼                              ▼
+    ┌───────────────────┐      ┌───────────────────┐
+    │Genocide Service 1 │      │Genocide Service 2 │
+    │  (WildFly + EJB)  │      │  (WildFly + EJB)  │
+    │                   │      │                   │
+    │  ┌─────────────┐  │      │  ┌─────────────┐  │
+    │  │  EJB Pool   │  │      │  │  EJB Pool   │  │
+    │  │(genocide-   │  │      │  │(genocide-   │  │
+    │  │   pool)     │  │      │  │   pool)     │  │
+    │  └─────────────┘  │      │  └─────────────┘  │
+    └───────────────────┘      └───────────────────┘
+```
+
+### City Service (Вызываемый):
+- **Платформа:** Spring Boot 3.5 на WildFly
+- **Service Discovery:** Spring Cloud Consul
+- **Балансировка:** HAProxy (Round Robin)
+- **Экземпляры:** 2 (city-service-1, city-service-2)
+
+### Genocide Service (Вызывающий):
+- **Платформа:** Jakarta EE 10 на WildFly
+- **Архитектура:** EAR (EJB + WAR)
+  - `ejb/` - Stateless EJB с Remote интерфейсом
+  - `web/` - JAX-RS веб-сервис
+  - `ear/` - Enterprise Application Archive
+- **EJB Pool:** genocide-pool (настраиваемый размер через `EJB_POOL_MAX_SIZE`)
+- **Балансировка:** HAProxy (Round Robin)
+- **Экземпляры:** 2 (genocide-service-1, genocide-service-2)
+
+---
+
+## Быстрый старт
+
+### 1. Сгенерировать SSL сертификаты:
+```bash
+cd ssl
+./generate-certs.sh
+```
+
+### 2. Собрать проекты:
+```bash
+# City Service
+cd city-service
+./gradlew clean build -x test
+
+# Genocide Service
+cd genocide-service
+./gradlew clean build -x test
+```
+
+### 3. Запустить все сервисы:
+```bash
+docker compose up -d --build
+```
+
+### 4. Проверить статус:
+- **HAProxy Stats:** http://localhost:8404/stats
+- **Consul UI:** http://localhost:8500
+- **Frontend:** https://localhost
+- **Swagger UI:** http://localhost:8083
+
+---
+
+## Конфигурация EJB пула
+
+Размер пула EJB настраивается через переменную окружения:
+```yaml
+environment:
+  - EJB_POOL_MAX_SIZE=20  # Максимальный размер пула
+```
+
+Пул автоматически расширяется при увеличении нагрузки до заданного максимума.
+
+---
+
+## API Endpoints
+
+### City Service (через HAProxy :8443):
+- `POST /cities/filter` - Фильтрация городов
+- `POST /cities` - Создать город
+- `GET /cities/{id}` - Получить город
+- `PUT /cities/{id}` - Обновить город
+- `DELETE /cities/{id}` - Удалить город
+
+### Genocide Service (через HAProxy :8444):
+- `POST /genocide/kill/{id}` - Уничтожить население города
+- `POST /genocide/move-to-poorest/{id}` - Переселить в беднейший город
+
+---
+
 **Вопросы к защите лабораторной работы:**
 
 1. Микросервисная архитектура. Особенности реализации. Сходства и отличия от "обычной" СОА.
