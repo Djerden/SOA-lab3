@@ -52,24 +52,79 @@ public class GenocideServiceBean implements GenocideServiceRemote {
             if (baseUrl == null || baseUrl.isEmpty()) {
                 baseUrl = "https://city-service:8443/";
             }
-            
+
             String trustPath = trustStorePath != null ? trustStorePath : System.getenv("SSL_TRUSTSTORE");
             String trustPass = trustStorePassword != null ? trustStorePassword : System.getenv("SSL_TRUSTSTORE_PASSWORD");
             if (trustPass == null) trustPass = "changeit";
 
             SSLContext sslContext = createSSLContext(trustPath, trustPass);
-            
+
             httpClient = HttpClient.newBuilder()
                     .sslContext(sslContext)
                     .connectTimeout(Duration.ofSeconds(10))
                     .build();
-            
+
             jsonb = JsonbBuilder.create();
-            
+
             LOGGER.info("GenocideServiceBean initialized with cityServiceUrl: " + baseUrl);
+
+            // === Диагностика доступности Consul ===
+            String consulHost = System.getenv().getOrDefault("CONSUL_HOST", "consul");
+            int consulPort = Integer.parseInt(System.getenv().getOrDefault("CONSUL_PORT", "8500"));
+            String consulUrl = String.format("http://%s:%d/v1/status/leader", consulHost, consulPort);
+            try {
+                LOGGER.info("Checking Consul availability at: " + consulUrl);
+                HttpRequest req = HttpRequest.newBuilder().uri(URI.create(consulUrl)).timeout(Duration.ofSeconds(5)).GET().build();
+                HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                LOGGER.info("Consul /v1/status/leader response: " + resp.statusCode() + " - " + resp.body());
+            } catch (Exception ce) {
+                LOGGER.log(Level.WARNING, "Consul is NOT available at init: " + consulUrl, ce);
+            }
+
+            // === Регистрация в Consul ===
+            LOGGER.info("Attempting to register in Consul...");
+            registerInConsul();
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Failed to initialize GenocideServiceBean", e);
             throw new RuntimeException("Failed to initialize EJB", e);
+        }
+    }
+
+    private void registerInConsul() {
+        try {
+            String consulHost = System.getenv().getOrDefault("CONSUL_HOST", "consul");
+            int consulPort = Integer.parseInt(System.getenv().getOrDefault("CONSUL_PORT", "8500"));
+            String serviceId = System.getenv().getOrDefault("SERVICE_ID", java.net.InetAddress.getLocalHost().getHostName());
+            String serviceName = System.getenv().getOrDefault("SERVICE_NAME", "genocide-service");
+            String serviceAddress = java.net.InetAddress.getLocalHost().getHostAddress();
+            int servicePort = 8080;
+            String healthPath = System.getenv().getOrDefault("SERVICE_8080_CHECK_HTTP", "/actuator/health");
+            String interval = System.getenv().getOrDefault("SERVICE_8080_CHECK_INTERVAL", "15s");
+            String timeout = System.getenv().getOrDefault("SERVICE_8080_CHECK_TIMEOUT", "5s");
+
+            String consulUrl = String.format("http://%s:%d/v1/agent/service/register", consulHost, consulPort);
+            String payload = String.format("{\"ID\":\"%s\",\"Name\":\"%s\",\"Address\":\"%s\",\"Port\":%d,\"Tags\":[\"genocide-service\",\"wildfly\",\"ejb\"],\"Check\":{\"HTTP\":\"http://%s:%d%s\",\"Interval\":\"%s\",\"Timeout\":\"%s\",\"DeregisterCriticalServiceAfter\":\"1m\"}}",
+                    serviceId, serviceName, serviceAddress, servicePort, serviceAddress, servicePort, healthPath, interval, timeout);
+
+            LOGGER.info("Consul registration payload: " + payload);
+            LOGGER.info("Sending registration to: " + consulUrl);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(consulUrl))
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(payload))
+                    .timeout(Duration.ofSeconds(10))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            LOGGER.info("Consul registration response: HTTP " + response.statusCode() + " - " + response.body());
+            if (response.statusCode() >= 300) {
+                LOGGER.warning("Consul registration failed: HTTP " + response.statusCode() + " - " + response.body());
+            } else {
+                LOGGER.info("Registered in Consul as " + serviceId + " (" + serviceAddress + ")");
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to register in Consul", e);
         }
     }
 

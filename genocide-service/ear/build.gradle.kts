@@ -6,7 +6,7 @@ plugins {
 dependencies {
     // EJB module
     deploy(project(":ejb"))
-    
+
     // WAR module
     deploy(project(path = ":web", configuration = "archives"))
 }

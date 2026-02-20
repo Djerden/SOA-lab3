@@ -11,4 +11,8 @@ plugins {
 }
 
 rootProject.name = "Lab2"
-include("city-service", "genocide-service")
+include("city-service")
+include("genocide-service")
+include("genocide-service:ear")
+include("genocide-service:ejb")
+include("genocide-service:web")

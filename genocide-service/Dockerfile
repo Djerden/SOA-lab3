@@ -17,6 +17,12 @@ COPY wildfly/configure-wildfly.cli /opt/jboss/wildfly/configure-wildfly.cli
 # Выполняем CLI для настройки WildFly
 RUN $WILDFLY_HOME/bin/jboss-cli.sh --file=/opt/jboss/wildfly/configure-wildfly.cli
 
+# Copy Consul registration script
+USER root
+COPY register-consul.sh /opt/jboss/register-consul.sh
+RUN chmod +x /opt/jboss/register-consul.sh
+USER jboss
+
 # EAR file (содержит EJB и WAR)
 COPY ear/build/libs/genocide-service-0.0.1-SNAPSHOT.ear $DEPLOYMENT_DIR/genocide-service.ear
 
@@ -24,8 +30,9 @@ COPY ear/build/libs/genocide-service-0.0.1-SNAPSHOT.ear $DEPLOYMENT_DIR/genocide
 RUN touch $DEPLOYMENT_DIR/genocide-service.ear.dodeploy
 
 # HTTPS порт
-EXPOSE 8443 9990
+EXPOSE 8443 8080 9990
 
-# Clean config history on start and run WildFly
+# Clean config history on start, run Consul registration in background, and run WildFly
 CMD rm -rf /opt/jboss/wildfly/standalone/configuration/standalone_xml_history/* 2>/dev/null; \
+    /opt/jboss/register-consul.sh & \
     /opt/jboss/wildfly/bin/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0

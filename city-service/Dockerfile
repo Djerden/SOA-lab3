@@ -31,6 +31,7 @@ RUN touch $DEPLOYMENT_DIR/city-service.war.dodeploy
 # HTTPS порт
 EXPOSE 8443 8080 9990 8787
 
-# Clean config history on start and run WildFly
+# Clean config history on start, run Consul registration in background, and run WildFly
 CMD rm -rf /opt/jboss/wildfly/standalone/configuration/standalone_xml_history/* 2>/dev/null; \
+    /opt/jboss/register-consul.sh & \
     /opt/jboss/wildfly/bin/standalone.sh -b 0.0.0.0 -bmanagement 0.0.0.0

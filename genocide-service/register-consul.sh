@@ -28,7 +28,7 @@ curl -X PUT "http://${CONSUL_HOST}:${CONSUL_PORT}/v1/agent/service/register" \
         \"Name\": \"${SERVICE_NAME}\",
         \"Address\": \"${IP}\",
         \"Port\": 8080,
-        \"Tags\": [\"${SERVICE_NAME}\", \"wildfly\", \"spring-boot\"],
+        \"Tags\": [\"${SERVICE_NAME}\", \"wildfly\", \"ejb\"],
         \"Check\": {
             \"HTTP\": \"http://${IP}:8080/actuator/health\",
             \"Interval\": \"15s\",
@@ -38,6 +38,3 @@ curl -X PUT "http://${CONSUL_HOST}:${CONSUL_PORT}/v1/agent/service/register" \
     }"
 
 echo "Successfully registered ${SERVICE_NAME}-${INSTANCE_ID} with Consul"
-
-# Keep container running by tailing nothing (entrypoint will handle the actual process)
-wait
